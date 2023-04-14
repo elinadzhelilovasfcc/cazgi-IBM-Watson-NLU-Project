@@ -1,92 +1,180 @@
-import './bootstrap.min.css';
-import './App.css';
-import EmotionTable from './EmotionTable.js';
-import React from 'react';
+import "./bootstrap.min.css";
+import "./App.css";
+import EmotionTable from "./EmotionTable.js";
+import { useState } from "react";
 
-class App extends React.Component {
-  /*
-  We are setting the component as a state named innercomp.
-  When this state is accessed, the HTML that is set as the 
-  value of the state, will be returned. The initial input mode
-  is set to text
-  */
-  state = {innercomp:<textarea rows="4" cols="50" id="textinput"/>,
-            mode: "text",
-          sentimentOutput:[],
-          sentiment:true
-        }
-  
-  /*
-  This method returns the component based on what the input mode is.
-  If the requested input mode is "text" it returns a textbox with 4 rows.
-  If the requested input mode is "url" it returns a textbox with 1 row.
-  */
- 
-  renderOutput = (input_mode)=>{
-    let rows = 1
-    let mode = "url"
-    //If the input mode is text make it 4 lines
-    if(input_mode === "text"){
-      mode = "text"
-      rows = 4
+export default function App() {
+  const [state, setState] = useState({
+    innercomp: <textarea rows="4" cols="50" id="textinput" />,
+    mode: "text",
+    sentimentOutput: [],
+    sentiment: false
+  });
+
+  function renderOutput(input_mode) {
+    let rows = 1;
+    let mode = "url";
+
+    if (input_mode === "text") {
+      mode = "text";
+      rows = 4;
     }
-      this.setState({innercomp:<textarea rows={rows} cols="50" id="textinput"/>,
+
+    setState((prevState) => ({
+      ...prevState,
+      innercomp: <textarea rows={rows} cols="50" id="textinput" />,
       mode: mode,
-      sentimentOutput:[],
-      sentiment:true
-      });
-  } 
-  
-  sendForSentimentAnalysis = () => {
-    this.setState({sentiment:true});
-    let url = ".";
-    let mode = this.state.mode
-    url = url+"/" + mode + "/sentiment?"+ mode + "="+document.getElementById("textinput").value;
-
-    fetch(url).then((response)=>{
-        response.json().then((data)=>{
-        this.setState({sentimentOutput:data.label});
-        let output = data.label;
-        let color = "white"
-        switch(output) {
-          case "positive": color = "black";break;
-          case "negative": color = "black";break;
-          default: color = "black";
-        }
-        output = <div style={{color:color,fontSize:20}}>{output}</div>
-        this.setState({sentimentOutput:output});
-      })});
+    }));
   }
 
-  sendForEmotionAnalysis = () => {
+  const sendForEmotionAnalysis = () => {
+    const spinner = document.getElementById("spinner");
+    const card = document.getElementById("card");
+    const errorText = document.getElementById("error");
 
-    this.setState({sentiment:false});
+    setState((prevState) => ({
+      ...prevState,
+    }));
     let url = ".";
-    let mode = this.state.mode
-    url = url+"/" + mode + "/emotion?"+ mode + "="+document.getElementById("textinput").value;
+    let mode = state.mode;
+    url =
+      url +
+      "/" +
+      mode +
+      "/emotion?" +
+      mode +
+      "=" +
+      document.getElementById("textinput").value;
+    spinner.classList.remove("d-none");
 
-    fetch(url).then((response)=>{
-      response.json().then((data)=>{
-      this.setState({sentimentOutput:<EmotionTable emotions={data}/>});
-  })})  ;
-  }
-  
-
-  render() {
-    return (  
-      <div className="App">
-      <button className="btn btn-info" onClick={()=>{this.renderOutput('text')}}>Text</button>
-        <button className="btn btn-dark"  onClick={()=>{this.renderOutput('url')}}>URL</button>
-        <br/><br/>
-        {this.state.innercomp}
-        <br/>
-        <button className="btn-primary" onClick={this.sendForSentimentAnalysis}>Analyze Sentiment</button>
-        <button className="btn-primary" onClick={this.sendForEmotionAnalysis}>Analyze Emotion</button>
-        <br/>
-            {this.state.sentimentOutput}
-      </div>
-    );
+    async function sendData() {
+      const response = await fetch(url);
+      response
+        .json()
+        .then((data) => {
+          spinner.classList.add("d-none");
+          errorText.classList.add("d-none");
+          setState((prevState) => ({
+            ...prevState,
+            sentimentOutput: <EmotionTable emotions={data} />,
+          }));
+        })
+        .catch(() => {
+          spinner.classList.add("d-none");
+          errorText.classList.remove("d-none");
+          card.classList.remove("d-none");
+          errorText.textContent = mode === "url" ? "Please, add valid URL" : "Please, add more emotions or valid text";
+        });
     }
-}
+    sendData();
+  };
 
-export default App;
+  const sendForSentimentAnalysis = () => {
+    let url = ".";
+    let mode = state.mode;
+    const spinner = document.getElementById("spinner");
+    const card = document.getElementById("card");
+    const errorText = document.getElementById("error");
+    url =
+      url +
+      "/" +
+      mode +
+      "/sentiment?" +
+      mode +
+      "=" +
+      document.getElementById("textinput").value;
+    spinner.classList.remove("d-none");
+    async function sendData() {
+      setState((prevState) => ({
+        ...prevState,
+        sentiment: true,
+      }));
+
+      const response = await fetch(url);
+      response
+        .json()
+        .then((data) => {
+          let output = data.label;
+          let color = "white";
+          switch (output) {
+            case "positive":
+              color = "#00f800";
+              break;
+            case "negative":
+              color = "#f80000";
+              break;
+            default:
+              color = "#FCE205";
+          }
+          spinner.classList.add("d-none");
+          errorText.classList.add("d-none");
+          card.classList.remove("d-none");
+          output = <div style={{ color: color, fontSize: 20 }}>{output}</div>;
+          setState((prevState) => ({
+            ...prevState,
+            sentimentOutput: output,
+          }));
+        })
+        .catch(() => {
+          spinner.classList.add("d-none");
+          errorText.classList.remove("d-none");
+          card.classList.remove("d-none");
+          errorText.textContent = mode === "url" ? "Please, add valid URL" : "Please, add more emotions or valid text";
+        });
+    }
+
+    sendData();
+  };
+
+  return (
+    <div className="App">
+      <div className="container mt-5">
+        <h1>Sentiment Analyzer</h1>
+        <button
+          type="button"
+          className="btn btn-primary mr-2"
+          onClick={() => renderOutput("text")}
+        >
+          Text
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary ml-2"
+          onClick={() => renderOutput("url")}
+        >
+          URL
+        </button>
+
+        <div className="mt-2 mb-2">{state.innercomp}</div>
+        <button
+          type="button"
+          className="btn btn-info mr-2"
+          onClick={() => sendForSentimentAnalysis()}
+        >
+          Analyze Sentiment
+        </button>
+        <button
+          type="button"
+          className="btn btn-success ml-2"
+          onClick={() => sendForEmotionAnalysis()}
+        >
+          Analyze Emotion
+        </button>
+        <br />
+        <br />
+        <br />
+        <div id="spinner" class="spinner-border text-info d-none" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+        <br />
+        <br />
+        <div id="card" class="card bg-light d-none">
+          <div id="card-body" class="card-body">
+            {state.sentimentOutput}
+            <div id="error" class="row text-danger"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
